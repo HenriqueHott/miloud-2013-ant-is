@@ -9,11 +9,12 @@ dataframe = pd.read_csv("databases/ecoli.csv", header=None)
 last_row = len(dataframe.columns) - 1
 classes = dataframe[last_row]
 dataframe = dataframe.drop(columns=[0, last_row])
-
 num_instances = len(dataframe.index)
+
 initial_pheromone = 1
 Q = 1
 evaporation_rate = 0.1
+
 
 distances = euclidean_distances(dataframe)
 visibilities = np.zeros(distances.shape)
