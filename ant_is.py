@@ -17,8 +17,7 @@ def get_visibility_rates_by_distances(distances: np.ndarray) -> np.ndarray:
     for i in range(distances.shape[0]):
         for j in range(distances.shape[1]):
             if i != j:
-                x = distances[i, j]
-                y = 1 / distances[i, j]
+                
                 visibilities[i, j] = 1 / distances[i, j]
 
     return visibilities
@@ -142,7 +141,7 @@ def run_colony(X, Y, initial_pheromone, evaporarion_rate, Q):
                 pheromone_trails[i, j] = (1 - evaporarion_rate) * pheromone_trails[i, j]
 
     instances_selected = np.nonzero(get_best_solution(the_colony, X, Y))[0]
-    return X[instances_selected]
+    return instances_selected
 
 
 def main():
@@ -155,7 +154,7 @@ def main():
     Q = 1
     evaporation_rate = 0.1
     print('Starting search')
-    dataset_selected = run_colony(dataframe.to_numpy(), classes.to_numpy(),
+    indices_selected = run_colony(dataframe.to_numpy(), classes.to_numpy(),
                                   initial_pheromone, evaporation_rate, Q)
 
     print("Execution finished")
