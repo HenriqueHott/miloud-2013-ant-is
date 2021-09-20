@@ -7,6 +7,8 @@ from sklearn.metrics import classification_report
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
 
 import os
 import json
@@ -112,21 +114,28 @@ def nn_test(X, y, k, out_name, reduce_instance = False):
     create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
 
 
-def cart_test(X, y, k, out_name, reduce_instance = False):
+def cart_test(X, y,  out_name, reduce_instance = False):
     classifier = DecisionTreeClassifier()
     create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
 
 
-def svm_test(X, y, k, out_name, reduce_instance=False):
+def svm_test(X, y, out_name, reduce_instance=False):
     classifier = SVC()
     create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
 
 
-
-def naive_bayes_test(X, y, k, out_name, reduce_instance = False):
+def naive_bayes_test(X, y, out_name, reduce_instance = False):
     classifier = GaussianNB()
     create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
 
+
+def random_forest_test(X, y, out_name, reduce_instance = False):
+    classifier = RandomForestClassifier()
+    create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
+
+def mlp_test(X, y, out_name, reduce_instance = False):
+    classifier = MLPClassifier()
+    create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
 
 def main():
     dataframe = pd.read_csv("databases/ecoli.csv", header=None)
@@ -136,11 +145,17 @@ def main():
     print("1-NN Test")
     nn_test(dataframe.to_numpy(), classes.to_numpy(), 1, 'outputs/full_ecoli_1nn_results.json')
     print("Guassian Naive Bayes Test")
-    naive_bayes_test(dataframe.to_numpy(), classes.to_numpy(), 1, 'outputs/full_ecoli_nb_results.json')
+    naive_bayes_test(dataframe.to_numpy(), classes.to_numpy(), 'outputs/full_ecoli_nb_results.json')
     print("CART test")
-    cart_test(dataframe.to_numpy(), classes.to_numpy(), 1, 'outputs/full_ecoli_cart_results.json')
+    cart_test(dataframe.to_numpy(), classes.to_numpy(),  'outputs/full_ecoli_cart_results.json')
     print("SVM Test")
-    svm_test(dataframe.to_numpy(), classes.to_numpy(), 1, 'outputs/full_ecoli_svm_results.json')
+    svm_test(dataframe.to_numpy(), classes.to_numpy(), 'outputs/full_ecoli_svm_results.json')
+    print("MLP Test")
+    mlp_test(dataframe.to_numpy(), classes.to_numpy(), 'outputs/full_ecoli_mlp_results.json')
+    print("Random Forest Test")
+    random_forest_test(dataframe.to_numpy(), classes.to_numpy(), 'outputs/full_ecoli_random_forest_results.json')
+
+
 
 
 
