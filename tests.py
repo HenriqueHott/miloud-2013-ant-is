@@ -4,6 +4,10 @@ from ant_is import run_colony
 from sklearn.model_selection import StratifiedKFold, KFold
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+
 import os
 import json
 
@@ -46,9 +50,10 @@ def create_test(classifier,
                 X: np.ndarray,
                 y: np.ndarray,
                 output_name: str,
-                initial_pheromone,
-                evaporation_rate,
-                Q, ):
+                reduce_instances: bool = False,
+                initial_pheromone: float = None,
+                evaporation_rate: float = None,
+                Q: float = None, ):
     num_instances = X.shape[0]
     results = {}
     for i in range(num_iterations):
@@ -57,25 +62,31 @@ def create_test(classifier,
         partial_scores = []
         selected_indices = []
         for train_indices, test_indices in folds.split(X, y):
-            # reduced_indices = run_colony(X[train_indices], y[train_indices], initial_pheromone, evaporation_rate, Q)
-            classifier.fit(X[train_indices], y[train_indices])
+            train_set = train_indices
+            if reduce_instances:
+                reduced_indices = run_colony(X[train_indices], y[train_indices], initial_pheromone, evaporation_rate, Q)
+                selected_indices.append(train_indices.tolist())
+                train_set = reduced_indices
+
+            classifier.fit(X[train_set], y[train_set])
             y_pred = classifier.predict(X[test_indices])
             score = classification_report(y[test_indices], y_pred, output_dict=True, zero_division=1)
             partial_scores.append(score)
-            selected_indices.append(train_indices.tolist())
 
         scores = get_stratfied_cross_validation_scores(partial_scores)
         print(f"accuracy: {scores['accuracy']}")
         for metric_name in scores["macro avg"].keys():
             print(f"{metric_name}: {scores['macro avg'][metric_name]}")
 
-
         print("-------------------------------------------------------")
-        results["i" + str(i)] = {
+        new_result = "i" + str(i)
+        results[new_result] = {
             "scores": get_stratfied_cross_validation_scores(partial_scores),
-            "selected_indices": selected_indices,
             "partial_scores": partial_scores,
         }
+
+        if reduce_instances:
+            results[new_result]["selected_indices"] = selected_indices
 
     avg_scores = {}
     for metric_name in CLASSIFICATION_METRICS[1:]:
@@ -96,15 +107,42 @@ def create_test(classifier,
     json.dump(results, open(output_name, 'w'), indent=2)
 
 
-def nn_test():
+def nn_test(X, y, k, out_name, reduce_instance = False):
+    classifier = KNeighborsClassifier(n_neighbors=k)
+    create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
+
+
+def cart_test(X, y, k, out_name, reduce_instance = False):
+    classifier = DecisionTreeClassifier()
+    create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
+
+
+def svm_test(X, y, k, out_name, reduce_instance=False):
+    classifier = SVC()
+    create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
+
+
+
+def naive_bayes_test(X, y, k, out_name, reduce_instance = False):
+    classifier = GaussianNB()
+    create_test(classifier, 10, 3, X, y, out_name, reduce_instance, 1, 0.1, 1)
+
+
+def main():
     dataframe = pd.read_csv("databases/ecoli.csv", header=None)
     last_row = len(dataframe.columns) - 1
     classes = dataframe[last_row]
     dataframe = dataframe.drop(columns=[0, last_row])
-    onenn = KNeighborsClassifier()
-    create_test(onenn, 10, 3, dataframe.to_numpy(), classes.to_numpy(), 'outputs/ecoli_results.json', 1, 0.1, 1)
+    print("1-NN Test")
+    nn_test(dataframe.to_numpy(), classes.to_numpy(), 1, 'outputs/full_ecoli_1nn_results.json')
+    print("Guassian Naive Bayes Test")
+    naive_bayes_test(dataframe.to_numpy(), classes.to_numpy(), 1, 'outputs/full_ecoli_nb_results.json')
+    print("CART test")
+    cart_test(dataframe.to_numpy(), classes.to_numpy(), 1, 'outputs/full_ecoli_cart_results.json')
+    print("SVM Test")
+    svm_test(dataframe.to_numpy(), classes.to_numpy(), 1, 'outputs/full_ecoli_svm_results.json')
+
 
 
 if __name__ == '__main__':
-    # Choose or create your test cases (this is better of jupyter)
-    nn_test()
+    main()
