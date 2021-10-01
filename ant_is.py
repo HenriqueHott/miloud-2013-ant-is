@@ -19,8 +19,10 @@ def get_visibility_rates_by_distances(distances: np.ndarray) -> np.ndarray:
     for i in range(distances.shape[0]):
         for j in range(distances.shape[1]):
             if i != j:
-                
-                visibilities[i, j] = 1 / distances[i, j]
+                if distances[i,j] == 0:
+                    visibilities[i, j] = 0
+                else:
+                    visibilities[i, j] = 1 / distances[i, j]
 
     return visibilities
 
@@ -64,7 +66,11 @@ def get_probabilities_paths_ordered(ant: np.array, visibility_rates: np.array, p
         probabilities[i, 0] = available_instance
         path_smell = phe_trails[available_instance] * \
                      visibility_rates[available_instance]
-        probabilities[i, 1] = path_smell / smell
+
+        if path_smell == 0:
+            probabilities[i, 1] = 0
+        else:
+            probabilities[i, 1] = path_smell / smell
 
     sorted_probabilities = probabilities[probabilities[:, 1].argsort()][::-1]
     return tuple([(int(i[0]), i[1]) for i in sorted_probabilities])
@@ -84,7 +90,7 @@ def get_best_solution(ant_solutions: np.ndarray, X, Y) -> np.array:
         if accuracy > accuracies[best_solution]:
             best_solution = i
 
-    print(f"The winner is ant {best_solution} with accucarcy {accuracies[best_solution]}")
+    # print(f"The winner is ant {best_solution} with accucarcy {accuracies[best_solution]}")
     return ant_solutions[best_solution]
 
 
@@ -94,12 +100,6 @@ def run_colony(X, Y, initial_pheromone, evaporarion_rate, Q):
     the_colony = create_colony(X.shape[0])
     for i in range(X.shape[0]):
         the_colony[i, i] = 1
-
-    # the_colony[0, 1] = 0
-    # the_colony[0, 2] = 0
-    # the_colony[1, 0] = 0
-    # the_colony[2, 0] = 0
-    # the_colony[2, 1] = 0
 
     ant_choices = [[(i, i)] for i in range(the_colony.shape[0])]
     pheromone_trails = create_pheromone_trails(distances, initial_pheromone)
@@ -118,9 +118,6 @@ def run_colony(X, Y, initial_pheromone, evaporarion_rate, Q):
                 for choice in choices:
                     next_instance = choice[0]
                     probability = choice[1]
-
-                    if probability == 0:
-                        continue
 
                     ajk = random.randint(0, 1)
                     final_probability = probability * ajk
@@ -147,11 +144,14 @@ def run_colony(X, Y, initial_pheromone, evaporarion_rate, Q):
 
 
 def main():
-    dataframe = pd.read_csv("databases/ecoli.csv", header=None)
-    last_row = len(dataframe.columns) - 1
-    classes = dataframe[last_row]
-    dataframe = dataframe.drop(columns=[0, last_row])
-    num_instances = len(dataframe.index)
+    #dataframe = pd.read_csv("databases/ecoli.csv", header=None)
+    #last_row = len(dataframe.columns) - 1
+    #classes = dataframe[last_row]
+    #dataframe = dataframe.drop(columns=[0, last_row])
+    #num_instances = len(dataframe.index)
+    dataframe = pd.read_csv("databases/AG/Aritmética/TreinamentoDesbalanceadoAritPreprocessada.csv")
+    classes = dataframe["TDE_MG_Arit"]
+    dataframe = dataframe.drop(columns=["TDE_MG_Arit"])
     initial_pheromone = 1
     Q = 1
     evaporation_rate = 0.1
@@ -159,6 +159,7 @@ def main():
     indices_selected = run_colony(dataframe.to_numpy(), classes.to_numpy(),
                                   initial_pheromone, evaporation_rate, Q)
 
+    print(len(indices_selected))
     print("Execution finished")
 
 
