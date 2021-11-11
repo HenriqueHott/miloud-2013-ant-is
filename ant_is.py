@@ -149,6 +149,7 @@ def main():
     #classes = dataframe[last_row]
     #dataframe = dataframe.drop(columns=[0, last_row])
     #num_instances = len(dataframe.index)
+    original_df = pd.read_csv("databases/base_presos.csv", sep=';') 
     dataframe = pd.read_csv("databases/base_presos.csv", sep=';')
     classes = dataframe["Classe"]
     dataframe = dataframe.drop(columns=["Classe"])
@@ -162,7 +163,7 @@ def main():
     print('End Search')
     print(len(indices_selected))
     # print(indices_selected)
-    reduced_dataframe = dataframe.iloc[indices_selected]
+    reduced_dataframe = original_df.iloc[indices_selected]
     reduced_dataframe.to_csv('outputs/presos_base_reduzidos.csv', index=False)
     print("Execution finished")
 
