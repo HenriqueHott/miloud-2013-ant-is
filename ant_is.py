@@ -144,14 +144,14 @@ def run_colony(X, Y, initial_pheromone, evaporarion_rate, Q):
 
 
 def main():
-    #dataframe = pd.read_csv("databases/ecoli.csv", header=None)
+    # dataframe = pd.read_csv("databases/ecoli.csv", header=None)
     #last_row = len(dataframe.columns) - 1
     #classes = dataframe[last_row]
     #dataframe = dataframe.drop(columns=[0, last_row])
     #num_instances = len(dataframe.index)
-    dataframe = pd.read_csv("databases/AG/Aritmética/TreinamentoDesbalanceadoAritPreprocessada.csv")
-    classes = dataframe["TDE_MG_Arit"]
-    dataframe = dataframe.drop(columns=["TDE_MG_Arit"])
+    dataframe = pd.read_csv("databases/base_presos.csv", sep=';')
+    classes = dataframe["Classe"]
+    dataframe = dataframe.drop(columns=["Classe"])
     initial_pheromone = 1
     Q = 1
     evaporation_rate = 0.1
@@ -159,7 +159,11 @@ def main():
     indices_selected = run_colony(dataframe.to_numpy(), classes.to_numpy(),
                                   initial_pheromone, evaporation_rate, Q)
 
+    print('End Search')
     print(len(indices_selected))
+    # print(indices_selected)
+    reduced_dataframe = dataframe.iloc[indices_selected]
+    reduced_dataframe.to_csv('outputs/presos_base_reduzidos.csv', index=False)
     print("Execution finished")
 
 

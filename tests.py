@@ -10,6 +10,8 @@ from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
+from imblearn.over_sampling import SMOTE 
+from collections import Counter
 
 import os
 import json
@@ -67,7 +69,8 @@ def create_test(classifier,
                 reduce_instances: bool = False,
                 initial_pheromone: float = None,
                 evaporation_rate: float = None,
-                Q: float = None, ):
+                Q: float = None,
+                resample_data = False ):
     num_instances = X.shape[0]
     results = {}
     for i in range(num_iterations):
@@ -78,12 +81,30 @@ def create_test(classifier,
         selected_indices = []
         red_ratios = []
         y_ratios = []
+        class_infos  = []
+        total_instances_ori = []
+        total_instances_red = []
+        total_instances_res = []
         for train_indices, test_indices in folds.split(X, y):
             train_set = train_indices
             y_rate = {}
-            if reduce_instances:
-                reduced_indices = run_colony(X[train_indices], y[train_indices], initial_pheromone, evaporation_rate, Q)
+            class_info = {}
 
+            train_data = X[train_indices]
+            train_labels = y[train_indices]
+            
+            num_instances_ori = len(train_indices)
+            num_instances_reduced = -1
+            num_instances_resampled = -1
+
+            counter = Counter(train_labels)
+            class_info["num_superior_original"] = counter['Superior']
+            class_info["num_inferior_original"] = counter['Inferior']
+            class_info["sup_rate_original"] = counter['Superior'] / train_labels.size
+            class_info["inf_rate_original"] = counter['Inferior'] / train_labels.size
+            
+            if reduce_instances:
+                reduced_indices = run_colony(train_data, train_labels, initial_pheromone, evaporation_rate, Q)
                 hashed_instances = []
                 for indice in reduced_indices:
                     x_indice = X[indice, :].tolist()
@@ -99,12 +120,32 @@ def create_test(classifier,
                 selected_indices.append(hashed_instances)
                 red_ratios.append(reduced_indices.size / train_indices.size)
 
-                train_set = reduced_indices
+                train_data = X[reduced_indices]
+                train_labels = y[reduced_indices]
 
-            classifier.fit(X[train_set], y[train_set])
+                num_instances_reduced = reduced_indices.size
+                
+                counter = Counter(train_labels)
+                class_info["num_superior_reduced"] = counter['Superior']
+                class_info["num_inferior_reduced"] = counter['Inferior']
+                class_info["sup_rate_reduced"] = counter['Superior'] / train_labels.size
+                class_info["inf_rate_reduced"] = counter['Inferior'] / train_labels.size
+            
+            if resample_data:
+                smote = SMOTE()
+                train_data, train_labels = smote.fit_resample(train_data, train_labels)
+                
+                num_instances_resampled = train_labels.size
+                
+                counter = Counter(train_labels)
+                class_info["num_superior_resampled"] = counter['Superior']
+                class_info["num_inferior_resampled"] = counter['Inferior']
+                class_info["sup_rate_resampled"] = counter['Superior'] / train_labels.size
+                class_info["inf_rate_resampled"] = counter['Inferior'] / train_labels.size
+
+            classifier.fit(train_data, train_labels)
             y_pred = classifier.predict(X[test_indices])
             y_pred_valid = classifier.predict(X_valid)
-
 
             y_names, y_counts = np.unique(y[train_set], return_counts=True)
             for x, y_name in enumerate(y_names):
@@ -116,6 +157,10 @@ def create_test(classifier,
             valid_scores.append(valid_score)
             partial_scores.append(score)
             y_ratios.append(y_rate)
+            class_infos.append(class_info)
+            total_instances_ori.append(num_instances_ori)
+            total_instances_red.append(num_instances_reduced)
+            total_instances_res.append(num_instances_resampled)
 
         scores = get_stratfied_cross_validation_scores(partial_scores)
         v_score = get_stratfied_cross_validation_scores(valid_scores)
@@ -131,6 +176,10 @@ def create_test(classifier,
             "partial_scores": partial_scores,
             "partial_valid_scores": valid_scores,
             "class_ratios": y_ratios,
+            "class_info": class_infos,
+            "total_instances_ori": total_instances_ori,
+            "total_instances_red": total_instances_red,
+            "total_instances_res": total_instances_res
         }
 
         if reduce_instances:
@@ -160,54 +209,112 @@ def run_all_tests(X, y, X_valid, y_valid, term_output):
     classifier = KNeighborsClassifier(n_neighbors=1)
     create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/full_{term_output}_1nn_results.json', False, 1, 0.1, 1)
 
+    print("1-NN Test Resampled")
+    classifier = KNeighborsClassifier(n_neighbors=1)
+    create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/resampled_{term_output}_1nn_results.json', False, 1, 0.1, 1, True)
+    
     print("1-NN Test Reduced")
     classifier = KNeighborsClassifier(n_neighbors=1)
     create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/reduced_{term_output}_1nn_results.json', True, 1, 0.1, 1)
 
+    print("1-NN Test reduced Resampled")
+    classifier = KNeighborsClassifier(n_neighbors=1)
+    create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/improved_{term_output}_1nn_results.json', True, 1, 0.1, 1, True)
+
     print("Gaussian NB Full")
     classifier = GaussianNB()
     create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/full_{term_output}_nb_results.json', False, 1, 0.1, 1)
+    
+    print("Gaussian NB Resampled")
+    classifier = GaussianNB()
+    create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/resampled_{term_output}_nb_results.json', False, 1, 0.1, 1, True)
 
     print("Gaussian NB Reduced")
     classifier = GaussianNB()
     create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/reduced_{term_output}_nb_results.json', True, 1, 0.1, 1)
+    
+    print("Gaussian NB Reduced Resampled")
+    classifier = GaussianNB()
+    create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/improved_{term_output}_nb_results.json', True, 1, 0.1, 1, True)
 
     print("CART test Full")
     classifier = DecisionTreeClassifier()
     create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/full_{term_output}_cart_results.json', False, 1, 0.1, 1)
+    
+    print("CART test Resampled")
+    classifier = DecisionTreeClassifier()
+    create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/resampled_{term_output}_cart_results.json', False, 1, 0.1, 1, True)
 
-    print("CART test Reduced")
+    print("CART test Reduced Resampled")
     classifier = DecisionTreeClassifier()
     create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/reduced_{term_output}_cart_results.json', True, 1, 0.1, 1)
+    
+    print("CART test Reduced")
+    classifier = DecisionTreeClassifier()
+    create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/improved_{term_output}_cart_results.json', True, 1, 0.1, 1, True)
 
     print("SVM Test Full")
     classifier = SVC()
     create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/full_{term_output}_svm_results.json', False, 1, 0.1, 1)
+    
+    print("SVM Test Resampled")
+    classifier = SVC()
+    create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/resampled_{term_output}_svm_results.json', False, 1, 0.1, 1, True)
 
     print("SVM Test Reduced")
     classifier = SVC()
     create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/reduced_{term_output}_svm_results.json', True, 1,0.1, 1)
+    
+    print("SVM Test Reduced Resampled")
+    classifier = SVC()
+    create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/improved_{term_output}_svm_results.json', True, 1,0.1, 1, True)
 
     print("MLP Test Full")
     classifier = MLPClassifier()
     create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/full_{term_output}_mlp_results.json', False, 1,0.1, 1)
+    
+    print("MLP Test Resampled")
+    classifier = MLPClassifier()
+    create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/resampled_{term_output}_mlp_results.json', False, 1,0.1, 1, True)
 
     print("MLP Test Reduced")
     classifier = MLPClassifier()
     create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/reduced_{term_output}_mlp_results.json', True, 1,0.1, 1)
+    
+    print("MLP Test Reduced Resampled")
+    classifier = MLPClassifier()
+    create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/improved_{term_output}_mlp_results.json', True, 1,0.1, 1, True)
 
     print("Random Forest Test Full")
     classifier = RandomForestClassifier()
     create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/full_{term_output}_random_forest_results.json', False, 1,0.1, 1)
+    
+    print("Random Forest Test Resampled")
+    classifier = RandomForestClassifier()
+    create_test(classifier, 1, 10, X, y, X_valid, y_valid, f'outputs/resampled_{term_output}_random_forest_results.json', False, 1,0.1, 1, True)
 
     print("Random Forest Test Reduced")
     classifier = RandomForestClassifier()
     create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/reduced_{term_output}_random_forest_results.json', True, 1,0.1, 1)
+    
+    print("Random Forest Test Reduced Resampled")
+    classifier = RandomForestClassifier()
+    create_test(classifier, 10, 10, X, y, X_valid, y_valid, f'outputs/improved_{term_output}_random_forest_results.json', True, 1,0.1, 1, True)
 
+
+
+def test_smote(X, y):
+    print(f"Shape of original data: {X.shape} {y.shape}")
+    print(f"Count of original labels: {Counter(y)}")
+    smote = SMOTE()
+    X_res, y_res = smote.fit_resample(X, y)
+    print(f"Shape of resampled data: {X_res.shape} {y_res.shape}")
+    print(f"Count of resampled labels: {Counter(y_res)}")
 
 
 
 def main():
+    
     print('-----======PRE-PROCESSING-------=========')
     df_arit = pd.read_csv("databases/AG/Aritmética/TreinamentoDesbalanceadoAritPreprocessada.csv", sep=";")
     df_esc = pd.read_csv("databases/AG/Escrita/TreinamentoDesbalanceadoEscPreprocessada.csv", sep=";")
