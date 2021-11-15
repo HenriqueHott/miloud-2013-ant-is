@@ -130,7 +130,7 @@ def create_test(classifier,
                 class_info["num_inferior_reduced"] = counter['Inferior']
                 class_info["sup_rate_reduced"] = counter['Superior'] / train_labels.size
                 class_info["inf_rate_reduced"] = counter['Inferior'] / train_labels.size
-            
+
             if resample_data:
                 smote = SMOTE()
                 train_data, train_labels = smote.fit_resample(train_data, train_labels)
