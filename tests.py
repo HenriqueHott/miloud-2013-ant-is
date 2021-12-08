@@ -48,16 +48,6 @@ def get_stratfied_cross_validation_scores(scores: List[Dict]):
 
     return new_score
 
-
-def get_average_results(results, result_key, num_iterations):
-    avg_results = {}
-    for metric_name in CLASSIFICATION_METRICS[1:]:
-        avg_results[metric_name] = sum([results[i][result_key]["macro avg"][metric_name] for i in results.keys()]) / \
-                                  num_iterations
-
-    avg_results["accuracy"] = sum([results[i][result_key]["accuracy"] for i in results.keys()]) / num_iterations
-    return avg_results
-
 def create_test(classifier,
                 num_iterations: int,
                 num_folds: int,
@@ -71,7 +61,7 @@ def create_test(classifier,
                 evaporation_rate: float = None,
                 Q: float = None,
                 resample_data = False ):
-    num_instances = X.shape[0]
+    
     results = {}
     for i in range(num_iterations):
         print(f"beginning of iterarion {i}")
@@ -86,17 +76,14 @@ def create_test(classifier,
         total_instances_red = []
         total_instances_res = []
         for train_indices, test_indices in folds.split(X, y):
-            train_set = train_indices
-            y_rate = {}
             class_info = {}
-
-            train_data = X[train_indices]
-            train_labels = y[train_indices]
-            
             num_instances_ori = len(train_indices)
             num_instances_reduced = -1
             num_instances_resampled = -1
 
+            train_data = X[train_indices]
+            train_labels = y[train_indices]
+            
             counter = Counter(train_labels)
             class_info["num_superior_original"] = counter['Superior']
             class_info["num_inferior_original"] = counter['Inferior']
@@ -112,10 +99,6 @@ def create_test(classifier,
                     x_indice.append(y_indice)
                     hashed_instance = hashlib.sha256(str(x_indice).encode('utf-8')).hexdigest()
                     hashed_instances.append(hashed_instance)
-
-                y_names, y_counts = np.unique(y[train_set], return_counts=True)
-                for x, y_name in enumerate(y_names):
-                    y_rate["full_" + y_name] = y_counts[x] / train_set.size
 
                 selected_indices.append(hashed_instances)
                 red_ratios.append(reduced_indices.size / train_indices.size)
@@ -147,16 +130,11 @@ def create_test(classifier,
             y_pred = classifier.predict(X[test_indices])
             y_pred_valid = classifier.predict(X_valid)
 
-            y_names, y_counts = np.unique(y[train_set], return_counts=True)
-            for x, y_name in enumerate(y_names):
-                y_rate[y_name] = y_counts[x] / train_set.size
-
             score = classification_report(y[test_indices], y_pred, output_dict=True, zero_division=1)
             valid_score = classification_report(y_valid, y_pred_valid, output_dict=True, zero_division=1)
 
             valid_scores.append(valid_score)
             partial_scores.append(score)
-            y_ratios.append(y_rate)
             class_infos.append(class_info)
             total_instances_ori.append(num_instances_ori)
             total_instances_red.append(num_instances_reduced)
@@ -166,13 +144,13 @@ def create_test(classifier,
         v_score = get_stratfied_cross_validation_scores(valid_scores)
         print(f"accuracy: {scores['accuracy']} ---- {v_score['accuracy']}")
         for metric_name in scores["macro avg"].keys():
-            print(f"{metric_name}: {scores['macro avg'][metric_name]} ---- {v_score['macro avg'][metric_name]}")
+            print(f"{metric_name}: Valid: {scores['macro avg'][metric_name]} -- Test: {v_score['macro avg'][metric_name]}")
 
         print("-------------------------------------------------------")
         new_result = "i" + str(i)
         results[new_result] = {
-            "scores": get_stratfied_cross_validation_scores(partial_scores),
-            "valid_scores": get_stratfied_cross_validation_scores(valid_scores),
+            "scores": scores,
+            "valid_scores": v_score,
             "partial_scores": partial_scores,
             "partial_valid_scores": valid_scores,
             "class_ratios": y_ratios,
@@ -320,12 +298,6 @@ def main():
     df_esc = pd.read_csv("databases/AG/Escrita/TreinamentoDesbalanceadoEscPreprocessada.csv", sep=";")
     df_leit = pd.read_csv("databases/AG/Leitura/TreinamentoDesbalanceadoLeitPreprocessada.csv", sep=";")
 
-    print(f"Instances before drop: Arit: {len(df_arit.index)}, Esc: {len(df_esc.index)} Leit: {len(df_leit.index)}")
-    df_arit = df_arit.drop_duplicates(ignore_index=True)
-    df_esc = df_esc.drop_duplicates(ignore_index=True)
-    df_leit = df_leit.drop_duplicates(ignore_index=True)
-    print(f"Instances after drop: Arit: {len(df_arit.index)}, Esc: {len(df_esc.index)} Leit: {len(df_leit.index)}")
-
     df_valid_arit = pd.read_csv("databases/AG/Aritmética/TesteAritPreprocessada.csv", sep=";")
     df_valid_esc = pd.read_csv("databases/AG/Escrita/TesteEscPreprocessada.csv", sep=";")
     df_valid_leit = pd.read_csv("databases/AG/Leitura/TesteLeitPreprocessada.csv", sep=";")
@@ -356,37 +328,6 @@ def main():
     y_valid = df_valid["TDE_MG_Leit"].to_numpy()
     X_valid = df_valid.drop(columns=["TDE_MG_Leit"]).to_numpy()
     run_all_tests(X, y, X_valid, y_valid, "leit")
-
-
-
-
-    # Test esc
-    # df = pd.read_csv("databases/AG/Escrita/TreinamentoDesbalanceadoEscPreprocessada.csv", sep=";")
-    # df_valid = pd.read_csv("databases/AG/Escrita/TesteEscPreprocessada.csv", sep=";")
-    # y = df["TDE_MG_Esc"].to_numpy()
-    # X = df.drop(columns=["TDE_MG_Esc"]).to_numpy()
-    # y_valid = df_valid["TDE_MG_Esc"].to_numpy()
-    # X_valid = df_valid.drop(columns=["TDE_MG_Esc"]).to_numpy()
-    # run_all_tests(X, y, X_valid, y_valid, "esc")
-
-    # # Test Leit
-    # df = pd.read_csv("databases/AG/Leitura/TreinamentoDesbalanceadoLeitPreprocessada.csv", sep=";")
-    # df_valid = pd.read_csv("databases/AG/Leitura/TesteLeitPreprocessada.csv", sep=";")
-    # y = df["TDE_MG_Leit"].to_numpy()
-    # X = df.drop(columns=["TDE_MG_Leit"]).to_numpy()
-    # y_valid = df_valid["TDE_MG_Leit"].to_numpy()
-    # X_valid = df_valid.drop(columns=["TDE_MG_Leit"]).to_numpy()
-    # run_all_tests(X, y, X_valid, y_valid, "leit")
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
