@@ -15,23 +15,7 @@ from collections import Counter
 
 import os
 import json
-
-# dataframe = pd.read_csv("databases/ecoli.csv", header=None)
-# last_row = len(dataframe.columns) - 1
-# classes = dataframe[last_row]
-# dataframe = dataframe.drop(columns=[0, last_row])
-# num_instances = len(dataframe.index)
-# initial_pheromone = 1
-# Q = 1
-# evaporation_rate = 0.1
-# X = dataframe.to_numpy()[0:8]
-# print(classes.unique())
-# Y = classes.to_numpy()[0:8]
-# print(Y.shape)
 from typing import *
-
-CLASSIFICATION_METRICS = ["accuracy", "precision", "recall", "f1-score", "support"]
-
 
 def get_stratfied_cross_validation_scores(scores: List[Dict]):
     new_score = scores[0].copy()
@@ -142,7 +126,7 @@ def create_test(classifier,
 
         scores = get_stratfied_cross_validation_scores(partial_scores)
         v_score = get_stratfied_cross_validation_scores(valid_scores)
-        print(f"accuracy: {scores['accuracy']} ---- {v_score['accuracy']}")
+        print(f"accuracy: Valid: {scores['accuracy']} -- Test: {v_score['accuracy']}")
         for metric_name in scores["macro avg"].keys():
             print(f"{metric_name}: Valid: {scores['macro avg'][metric_name]} -- Test: {v_score['macro avg'][metric_name]}")
 
@@ -164,18 +148,9 @@ def create_test(classifier,
             results[new_result]["selected_indices"] = selected_indices
             results[new_result]["reduction_ratios"] = red_ratios
 
-    avg_scores = get_average_results(results, "scores", num_iterations)
-    avg_valid_scores = get_average_results(results, "valid_scores", num_iterations)
-
     results["num_iterations"] = num_iterations
     results["num_folds"] = num_folds
-    results["strategy"] = "Strafied Cross Validation"  # For a while is the unique validation method availble in tests
-    results["avg_scores"] = avg_scores
-    results["avg_valid_scores"] = avg_valid_scores
-    print("---==Final test results==---")
-    for key in avg_scores.keys():
-        print(f"{key}: {avg_scores[key]} ---- {avg_valid_scores[key]}")
-
+    results["strategy"] = "Strafied Cross Validation" 
 
     print("Generating output JSON file....")
     json.dump(results, open(output_name, 'w'), indent=2)
